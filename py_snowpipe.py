@@ -36,7 +36,7 @@ def connect_snow():
         database="INGEST",
         schema="INGEST",
         warehouse="INGEST",
-        session_parameters={'QUERY_TAG': 'py-snowpipe'},
+        session_parameters={'QUERY_TAG': 'py-snowpipe'}, 
     )
 
 
@@ -54,7 +54,7 @@ def save_to_snowflake(snow, batch, temp_dir, ingest_manager):
     logging.info(f"response from snowflake for file {file_name}: {resp['responseCode']}")
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":    
     args = sys.argv[1:]
     batch_size = int(args[0])
     snow = connect_snow()
@@ -70,12 +70,12 @@ if __name__ == "__main__":
     for message in sys.stdin:
         if message != '\n':
             record = json.loads(message)
-            batch.append(record["txid"], record["rfid"], record["item"],record["size"],record["category"],record["gender"],record["sub_category"],record["price"],record["purchase_time"],record["expiration_time"],record["days"],record["refunded"],record["refund_reason"],record["review_score"],record["review_text"],record["name"],record["address"],record["phone"],record["email"], record["emergency_contact"]))
+            batch.append((record["txid"], record["rfid"], record["item"], record["size"], record["category"], record["gender"], record["sub_category"], record["price"], record["purchase_time"], record["delivery_time"], record["expiration_time"], record["days"], record["refunded"], record["refund_reason"], record["review_score"], record["review_text"], record["name"], record["address"], record["phone"], record["email"], record["emergency_contact"]))
             if len(batch) == batch_size:
                 save_to_snowflake(snow, batch, temp_dir, ingest_manager)
                 batch = []
         else:
-            break
+            break    
     if len(batch) > 0:
         save_to_snowflake(snow, batch, temp_dir, ingest_manager)
     temp_dir.cleanup()
