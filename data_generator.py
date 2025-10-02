@@ -1,6 +1,6 @@
 import sys
 import json
-import optional_faker as _
+import optional_faker as _  # enregistre les helpers (ex: none_or) dans Faker
 import uuid
 import random
 
@@ -13,10 +13,14 @@ fake = Faker()
 
 
 def calculate_prices(base_price):
-    # Assume base_price is for 50ml, scale accordingly
+    """
+    Suppose que base_price correspond à 50ml.
+    - 100ml : prix proportionnel
+    - 30ml : 25% plus cher au ml que 50ml
+    """
     price_per_ml_100 = base_price / 50
     price_100ml = round(price_per_ml_100 * 100, 2)
-    price_per_ml_30 = price_per_ml_100 * 1.25  # 25% more expensive per ml
+    price_per_ml_30 = price_per_ml_100 * 1.25  # 25% plus cher au ml
     price_30ml = round(price_per_ml_30 * 30, 2)
     return price_30ml, price_100ml
 
@@ -346,8 +350,10 @@ base_inventory = [
     },
 ]
 
+# Construire les variantes 30ml / 100ml
 for item in base_inventory:
     price_30ml, price_100ml = calculate_prices(item["price"])
+
     item_30ml = item.copy()
     item_30ml["size"] = "30ml"
     item_30ml["price"] = price_30ml
@@ -362,25 +368,27 @@ for item in base_inventory:
 
 def print_client_support():
     global inventory, fake
-    state = fake.state_abbr()
 
-    # Select a random item (which is now a dictionary) from the inventory
+    state = fake.state_abbr()
     selected_item = fake.random_element(elements=inventory)
+
+    
+    refunded = fake.boolean(chance_of_getting_true=10)
 
     client_support = {
         "txid": str(uuid.uuid4()),
         "rfid": hex(random.getrandbits(96)),
-        "item": selected_item["name"],  # Extract the name from the dictionary
+        "item": selected_item["name"],
         "size": selected_item["size"],
         "category": selected_item["category"],
         "gender": selected_item["gender"],
         "sub_category": selected_item["sub_category"],
-        "price": selected_item["price"],  # Extract the price from the dictionary
+        "price": selected_item["price"],
         "purchase_time": datetime.utcnow().isoformat(),
-        "delivery_time": date(2025, 9, 29).isoformat(),  # Delivery date,
-        "expiration_time": date(2026, 9, 29).isoformat(),  # Expiration date,
+        "delivery_time": date(2025, 9, 29).isoformat(),
+        "expiration_time": date(2026, 9, 29).isoformat(),
         "days": fake.random_int(min=1, max=7),
-        "refunded": fake.boolean(chance_of_getting_true=10),
+        "refunded": refunded,
         "refund_reason": (
             fake.random_element(
                 elements=[
@@ -391,8 +399,7 @@ def print_client_support():
                     "Changed mind",
                 ]
             )
-            if client_support.get("refunded", False)  # noqa: F821
-            else None
+            if refunded else None
         ),
         "review_score": fake.random_int(min=1, max=5),
         "review_text": fake.sentence(nb_words=12),
@@ -411,6 +418,7 @@ def print_client_support():
             {"name": fake.name(), "phone": fake.phone_number()}
         ),
     }
+
     d = json.dumps(client_support) + "\n"
     sys.stdout.write(d)
 
