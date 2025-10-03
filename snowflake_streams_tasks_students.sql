@@ -93,7 +93,7 @@ use warehouse Orchestration_WH;
 -- YOUR CODE HERE - Create internal stage CC_STAGE with JSON file format
 CREATE OR REPLACE FILE FORMAT CC_JSON_FORMAT
   TYPE = 'JSON'
-  COMPRESSION = 'AUTO'
+  COMPRESSION = 'AUTO';
 -- YOUR CODE HERE - Create staging table CC_TRANS_STAGING with VARIANT column
 CREATE OR REPLACE TABLE CC_TRANS_STAGING (
   DATA VARIANT,
