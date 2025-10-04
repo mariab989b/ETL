@@ -1,30 +1,20 @@
-import os, sys, logging
-import json
+import os, sys, logging, json
 import snowflake.connector
-
 from dotenv import load_dotenv
 from cryptography.hazmat.primitives import serialization
 
 load_dotenv()
 logging.basicConfig(level=logging.WARN)
-snowflake.connector.paramstyle = "qmark"
-
+snowflake.connector.paramstyle = 'qmark'
 
 def connect_snow():
-    private_key = (
-        "-----BEGIN PRIVATE KEY-----\n"
-        + os.getenv("PRIVATE_KEY")
-        + "\n-----END PRIVATE KEY-----\n"
-    )
-    p_key = serialization.load_pem_private_key(
-        bytes(private_key, "utf-8"), password=None
-    )
+    private_key = "-----BEGIN PRIVATE KEY-----\n" + os.getenv("PRIVATE_KEY") + "\n-----END PRIVATE KEY-----\n"
+    p_key = serialization.load_pem_private_key(private_key.encode("utf-8"), password=None)
     pkb = p_key.private_bytes(
         encoding=serialization.Encoding.DER,
         format=serialization.PrivateFormat.PKCS8,
-        encryption_algorithm=serialization.NoEncryption(),
+        encryption_algorithm=serialization.NoEncryption()
     )
-
     return snowflake.connector.connect(
         account=os.getenv("SNOWFLAKE_ACCOUNT"),
         user=os.getenv("SNOWFLAKE_USER"),
@@ -33,42 +23,62 @@ def connect_snow():
         database="INGEST",
         schema="INGEST",
         warehouse="INGEST",
-        session_parameters={"QUERY_TAG": "py-insert"},
+        session_parameters={'QUERY_TAG': 'py-insert'},
     )
-
 
 def save_to_snowflake(snow, message):
     record = json.loads(message)
-    logging.debug("inserting record to db")
+    addr = record.get("address") or {}
     row = (
         record["txid"],
         record["rfid"],
+        record["product_id"],
+        record["product_variant_id"],
         record["item"],
-        record["details"],
+        record["size"],
+        record["category"],
+        record["gender"],
+        record["sub_category"],
         record["price"],
-        record["purchase_time"],
-        record["expiration_time"],
+        record["purchase_time"],   # ex: "2025-10-04T12:34:56+02:00" (TIMESTAMP_TZ)
+        record["delivery_time"],   # ex: "2025-10-06" (DATE)
+        record["expiration_time"], # ex: "2026-10-06" (DATE)
         record["days"],
+        record["refunded"],
+        record["refund_reason"],
+        record["review_score"],
+        record["review_text"],
         record["name"],
-        json.dumps(record["address"]),
+        addr.get("street_address"),
+        addr.get("city"),
+        addr.get("postalcode"),
         record["phone"],
         record["email"],
-        json.dumps(record["emergency_contact"]),
+        record["date_of_birth"],   # "YYYY-MM-DD"
+        record["sex"],
     )
-    # this dataset has variant records, so utilizing an executemany() is not possible, must insert 1 record at a time
+    assert len(row) == 26, f"Param count mismatch: {len(row)}"
     snow.cursor().execute(
-        'INSERT INTO CLIENT_SUPPORT_ORDERS ("TXID","RFID","ITEM","DETAILS","PRICE","PURCHASE_TIME", "EXPIRATION_TIME","DAYS","NAME","ADDRESS","PHONE","EMAIL","EMERGENCY_CONTACT") SELECT ?,?,?,?,?,?,?,?,?,PARSE_JSON(?),?,?,PARSE_JSON(?)',
-        row,
+        '''
+        INSERT INTO CLIENT_SUPPORT_ORDERS (
+          "TXID","RFID","PRODUCT_ID","PRODUCT_VARIANT_ID",
+          "ITEM","SIZE","CATEGORY","GENDER","SUB_CATEGORY","PRICE",
+          "PURCHASE_TIME","DELIVERY_TIME","EXPIRATION_TIME","DAYS",
+          "REFUNDED","REFUND_REASON","REVIEW_SCORE","REVIEW_TEXT",
+          "NAME","ADDRESS_STREET","ADDRESS_CITY","ADDRESS_POSTALCODE",
+          "PHONE","EMAIL","DATE_OF_BIRTH","SEX"
+        )
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        ''',
+        row
     )
-    logging.debug(f"inserted order {record}")
-
 
 if __name__ == "__main__":
     snow = connect_snow()
-    for message in sys.stdin:
-        if message != "\n":
-            save_to_snowflake(snow, message)
-        else:
-            break
-    snow.close()
-    logging.info("Ingest complete")
+    try:
+        for message in sys.stdin:
+            if message.strip():
+                save_to_snowflake(snow, message)
+    finally:
+        snow.close()
+        logging.info("Ingest complete")
