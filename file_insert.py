@@ -33,7 +33,7 @@ def connect_snow():
         account=os.getenv("SNOWFLAKE_ACCOUNT"),
         user=os.getenv("SNOWFLAKE_USER"),
         private_key=pkb,
-        role="INGESTION_USER",
+        role="INGEST",
         database="INGEST",
         schema="INGEST",
         warehouse="INGEST",
@@ -48,7 +48,9 @@ def save_to_snowflake(snow, batch, temp_dir):
         columns=[
             "TXID",
             "RFID",
-            "ITEM",  # Changed from RESORT to ITEM
+            "PRODUCT_ID",
+            "PRODUCT_VARIANT_ID",
+            "ITEM",  
             "SIZE",
             "CATEGORY",
             "GENDER",
@@ -63,23 +65,26 @@ def save_to_snowflake(snow, batch, temp_dir):
             "REVIEW_SCORE",
             "REVIEW_TEXT",
             "NAME",
-            "ADDRESS",
+            "ADDRESS_STREET",
+            "ADDRESS_CITY",
+            "ADDRESS_POSTALCODE",
             "PHONE",
             "EMAIL",
-            "EMERGENCY_CONTACT",
+            "DATE_OF_BIRTH",
+            "SEX",
         ],
     )
     arrow_table = pa.Table.from_pandas(pandas_df)
     out_path = f"{temp_dir.name}/{str(uuid.uuid1())}.parquet"
     pq.write_table(arrow_table, out_path, use_dictionary=False, compression="SNAPPY")
     snow.cursor().execute(
-        "PUT 'file://{0}' @%CLIENT_SUPPORT_ORDERS_PY_COPY_INTO".format(
+        "PUT 'file://{0}' @%CLIENT_SUPPORT_ORDERS".format(
             out_path
         )  # Updated table name
     )
     os.unlink(out_path)
     snow.cursor().execute(
-        "COPY INTO CLIENT_SUPPORT_ORDERS_PY_COPY_INTO FILE_FORMAT=(TYPE='PARQUET') MATCH_BY_COLUMN_NAME=CASE_SENSITIVE PURGE=TRUE"  # Updated table name
+        "COPY INTO CLIENT_SUPPORT_ORDERS FILE_FORMAT=(TYPE='PARQUET') MATCH_BY_COLUMN_NAME=CASE_SENSITIVE PURGE=TRUE"  # Updated table name
     )
     logging.debug(f"inserted {len(batch)} orders")  # Changed from tickets to orders
 
@@ -93,10 +98,13 @@ if __name__ == "__main__":
     for message in sys.stdin:
         if message != "\n":
             record = json.loads(message)
+            addr = record.get("address") or {}
             batch.append(
                 (
                     record["txid"],
                     record["rfid"],
+                    record["product_id"],
+                    record["product_variant_id"],
                     record["item"],  # Changed from resort to item,
                     record["size"],
                     record["category"],
@@ -104,6 +112,7 @@ if __name__ == "__main__":
                     record["sub_category"],
                     record["price"],
                     record["purchase_time"],
+                    record["delivery_time"],
                     record["expiration_time"],
                     record["days"],
                     record["refunded"],
@@ -111,10 +120,13 @@ if __name__ == "__main__":
                     record["review_score"],
                     record["review_text"],
                     record["name"],
-                    record["address"],
+                    addr.get("street_address"),
+                    addr.get("city"),
+                    addr.get("postalcode"),
                     record["phone"],
                     record["email"],
-                    record["emergency_contact"],
+                    record["date_of_birth"],
+                    record["sex"],
                 )
             )
             if len(batch) == batch_size:
