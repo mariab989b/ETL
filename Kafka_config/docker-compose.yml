@@ -1,0 +1,108 @@
+version: '3.8'
+
+services:
+  # Redpanda - Alternative Kafka plus légère
+  redpanda-0:
+    image: docker.redpanda.com/redpandadata/redpanda:v23.2.3
+    container_name: redpanda-0
+    command:
+      - redpanda
+      - start
+      - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr internal://redpanda-0:9092,external://localhost:19092
+      - --pandaproxy-addr internal://0.0.0.0:8082,external://0.0.0.0:18082
+      - --advertise-pandaproxy-addr internal://redpanda-0:8082,external://localhost:18082
+      - --schema-registry-addr internal://0.0.0.0:8081,external://0.0.0.0:18081
+      - --rpc-addr redpanda-0:33145
+      - --advertise-rpc-addr redpanda-0:33145
+      - --smp 1
+      - --memory 1G
+      - --mode dev-container
+      - --default-log-level=info
+    ports:
+      - "18081:18081"  # Schema Registry
+      - "18082:18082"  # Pandaproxy
+      - "19092:19092"  # Kafka API
+      - "19644:9644"   # Admin API
+    networks:
+      - redpanda_network
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -E 'Healthy:.+true' || exit 1"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  # Console Web pour visualiser Kafka
+  console:
+    image: docker.redpanda.com/redpandadata/console:v2.3.1
+    container_name: redpanda-console
+    entrypoint: /bin/sh
+    command: -c 'echo "$$CONSOLE_CONFIG_FILE" > /tmp/config.yml; /app/console'
+    environment:
+      CONFIG_FILEPATH: /tmp/config.yml
+      CONSOLE_CONFIG_FILE: |
+        kafka:
+          brokers: ["redpanda-0:9092"]
+          schemaRegistry:
+            enabled: true
+            urls: ["http://redpanda-0:8081"]
+        redpanda:
+          adminApi:
+            enabled: true
+            urls: ["http://redpanda-0:9644"]
+        connect:
+          enabled: true
+          clusters:
+            - name: local-connect-cluster
+              url: http://connect:8083  # Port interne reste 8083
+    ports:
+      - "8080:8080"
+    networks:
+      - redpanda_network
+    depends_on:
+      - redpanda-0
+
+  # Kafka Connect pour l'intégration Snowflake
+  connect:
+    image: confluentinc/cp-kafka-connect:7.5.0
+    container_name: kafka-connect
+    depends_on:
+      - redpanda-0
+    ports:
+      - "8083:8083"  # ← Change 8084 en 8083 si besoin
+    networks:
+      - redpanda_network
+    volumes:
+      - ./kafka-plugins:/usr/share/confluent-hub-components  # ← AJOUTE CETTE LIGNE
+    environment:
+      CONNECT_BOOTSTRAP_SERVERS: "redpanda-0:9092"  # Changé de 8083 à 8084
+      CONNECT_REST_PORT: 8083
+      CONNECT_GROUP_ID: "kafka-connect"
+      CONNECT_CONFIG_STORAGE_TOPIC: "connect-configs"
+      CONNECT_OFFSET_STORAGE_TOPIC: "connect-offsets"
+      CONNECT_STATUS_STORAGE_TOPIC: "connect-status"
+      CONNECT_KEY_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
+      CONNECT_VALUE_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
+      CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+      CONNECT_REST_ADVERTISED_HOST_NAME: "connect"
+      CONNECT_LOG4J_ROOT_LOGLEVEL: "INFO"
+      CONNECT_LOG4J_LOGGERS: "org.apache.kafka.connect.runtime.rest=WARN,org.reflections=ERROR"
+      CONNECT_PLUGIN_PATH: "/usr/share/java,/usr/share/confluent-hub-components"
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: "1"
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: "1"
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: "1"
+      CONNECT_PRODUCER_COMPRESSION_TYPE: "snappy"
+      CONNECT_CONSUMER_MAX_POLL_RECORDS: "500"
+    command:
+      - bash
+      - -c
+      - |
+        echo "Installing Snowflake Connector..."
+        confluent-hub install --no-prompt snowflakeinc/snowflake-kafka-connector:2.1.0
+        echo "Starting Kafka Connect..."
+        /etc/confluent/docker/run
+
+networks:
+  redpanda_network:
+    driver: bridge
