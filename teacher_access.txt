@@ -1,0 +1,12 @@
+1.⁠ ⁠YOUR FULL NAME: Maria Boussa
+
+2.⁠ ⁠NAME of user created INSTRUCTOR_USER
+3.⁠ ⁠PASSWORD of user created 234
+
+3.⁠ ⁠YOUR ACCOUNT URL:  https://pzwymsq-yub02682.snowflakecomputing.com
+   
+
+4.⁠ ⁠CREDENTIALS FOR INSTRUCTOR:
+   - Username: INSTRUCTOR_USER
+   - Password: 234
+   - Role: ACCOUNTADMIN
