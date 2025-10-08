@@ -31,9 +31,7 @@ The project implements pragmatic patterns — **landing → staging → dimensio
 
 ## 1) Executive Summary
 - **Goal.** Demonstrate a reliable and scalable Snowflake pipeline that converts synthetic order events into analysis‑ready datasets.  
-- **Implemented vs. Conceptual.**
-  - **Implemented:** Python generation → landing table **CLIENT_SUPPORT_ORDERS_PY_SNOWPIPE** → SQL transformations → analytical tables → two Streamlit apps (analytics & monitoring).  
-  - **Conceptual:** AWS Kinesis + Lake Formation (ingestion/governance), Amazon Personalize/Aurora (serving), Amazon QuickSight (BI).
+- **Implemented:** Python generation → landing table **CLIENT_SUPPORT_ORDERS_PY_SNOWPIPE** → SQL transformations → analytical tables → two Streamlit apps (analytics & monitoring).  
 - **Value.** Applies modern Data/Analytics patterns (staging → model → consumption) with a production‑minded, cost‑aware approach.
 
 ---
@@ -42,7 +40,7 @@ The project implements pragmatic patterns — **landing → staging → dimensio
 **End‑to‑end flow:**
 ```
 Synthetic Sources
-  → (Concept) Amazon Kinesis / AWS Lake Formation
+  → DataGenerator
   → Snowflake: Landing
   → SQL Transformations
   → Analytical Storage
@@ -286,7 +284,7 @@ The generated data describes **customer orders**. Records first land in a **land
 
 ---
 
-### Keys & Relationships (summary)
+### Keys & Relationships
 - **PK:** `CLIENTS.CLIENT_ID`, `PRODUCTS.PRODUCT_ID`, `PRODUCT_VARIANTS.PRODUCT_VARIANT_ID`, `ORDERS.ORDER_ID`, `ORDER_LINES.ORDER_LINE_ID`, `ORDER_STATUS_HISTORY.STATUS_EVENT_ID`, `REVIEWS.REVIEW_ID`, `INVENTORY_MOVEMENTS.MOVEMENT_ID`.  
 - **FK:**  
   - `ORDERS.CLIENT_ID` → `CLIENTS.CLIENT_ID`  
@@ -366,7 +364,5 @@ Validated/monitored rules:
 
 ## 10) Future Work
 - Orchestration with **Streams + Tasks** (automate landing → model).  
-- Multi-line orders / promotions / seasonality in the generator.  
-- Serving layers: **Amazon Aurora**; personalization with **Amazon Personalize**.  
-- **BI:** **Amazon QuickSight** + scheduling (EventBridge).  
+- Multi-line orders / promotions / seasonality in the generator.    
 - Data contracts & schema registry.
