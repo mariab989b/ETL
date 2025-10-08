@@ -153,7 +153,7 @@ alt.themes.register('dark_theme', lambda: {
 alt.themes.enable('dark_theme')
 
 # Tabs
-tab1, tab2, tab3, tab4 = st.tabs(["Vue d'ensemble", "Complétude", "Cohérence", "Tendances"])
+tab1, tab2, tab3, tab4 = st.tabs(["Overview", "Completeness", "Consistency", "Trends"])
 
 
 with tab1:
@@ -169,7 +169,7 @@ with tab1:
     """
     counts = session.sql(counts_sql).collect()[0]
     
-    st.subheader("Volume des données")
+    st.subheader("Data volume")
     col1, col2, col3, col4, col5, col6 = st.columns(6)
     col1.metric("Clients", f"{counts['NB_CLIENTS']:,}")
     col2.metric("Produits", f"{counts['NB_PRODUCTS']:,}")
@@ -181,7 +181,7 @@ with tab1:
     st.markdown("---")
     
     
-    st.subheader("Score de qualité global")
+    st.subheader("Overall Quality Score")
     
     quality_checks = []
     
@@ -193,7 +193,7 @@ with tab1:
         FROM SALES_DATA.SALES_DATA.clients
     """).collect()[0]
     email_pct = 100 * email_check['VALID_EMAIL'] / email_check['TOTAL'] if email_check['TOTAL'] > 0 else 0
-    quality_checks.append(('Emails valides', email_pct))
+    quality_checks.append(('Valid emails', email_pct))
     
     
     orders_check = session.sql("""
@@ -204,7 +204,7 @@ with tab1:
         LEFT JOIN SALES_DATA.SALES_DATA.order_lines ol ON o.order_id = ol.order_id
     """).collect()[0]
     orders_pct = 100 * orders_check['ORDERS_WITH_LINES'] / orders_check['TOTAL_ORDERS'] if orders_check['TOTAL_ORDERS'] > 0 else 0
-    quality_checks.append(('Commandes avec lignes', orders_pct))
+    quality_checks.append(('Commands with lines', orders_pct))
     
     
     amounts_check = session.sql("""
@@ -214,7 +214,7 @@ with tab1:
         FROM SALES_DATA.SALES_DATA.orders
     """).collect()[0]
     amounts_pct = 100 * amounts_check['CORRECT_AMOUNTS'] / amounts_check['TOTAL'] if amounts_check['TOTAL'] > 0 else 0
-    quality_checks.append(('Cohérence montants', amounts_pct))
+    quality_checks.append(('Consistency amounts', amounts_pct))
     
     
     active_check = session.sql("""
@@ -224,7 +224,7 @@ with tab1:
         FROM SALES_DATA.SALES_DATA.product_variants
     """).collect()[0]
     active_pct = 100 * active_check['ACTIVE_VARIANTS'] / active_check['TOTAL'] if active_check['TOTAL'] > 0 else 0
-    quality_checks.append(('Variants actifs', active_pct))
+    quality_checks.append(('Active variants', active_pct))
     
     
     global_score = sum([score for _, score in quality_checks]) / len(quality_checks)
@@ -241,9 +241,9 @@ with tab1:
             status = "Bon"
         else:
             color = "#FF6B6B"
-            status = "À améliorer"
+            status = "To improve"
         
-        st.metric("Score global", f"{global_score:.1f}%", status)
+        st.metric("Overall score", f"{global_score:.1f}%", status)
         
         for check_name, check_score in quality_checks:
             if check_score >= 90:
@@ -277,10 +277,10 @@ with tab1:
 
 
 with tab2:
-    st.subheader("Analyse de complétude des champs")
+    st.subheader("Field Completeness Analysis")
     
     
-    st.markdown("**Table CLIENTS**")
+    st.markdown("**CUSTOMERS Table**")
     client_completeness = session.sql("""
         SELECT 
           COUNT(*) AS total,
@@ -296,13 +296,13 @@ with tab2:
     
     total_clients = client_completeness['TOTAL']
     client_fields = {
-        'Nom': 100 * client_completeness['NAME_FILLED'] / total_clients,
-        'Email': 100 * client_completeness['EMAIL_FILLED'] / total_clients,
-        'Téléphone': 100 * client_completeness['PHONE_FILLED'] / total_clients,
-        'Adresse': 100 * client_completeness['ADDRESS_FILLED'] / total_clients,
-        'Ville': 100 * client_completeness['CITY_FILLED'] / total_clients,
-        'Code postal': 100 * client_completeness['POSTAL_FILLED'] / total_clients,
-        'Date naissance': 100 * client_completeness['DOB_FILLED'] / total_clients
+        'Name': 100 * client_completeness['NAME_FILLED'] / total_clients,
+        'email': 100 * client_completeness['EMAIL_FILLED'] / total_clients,
+        'Phone': 100 * client_completeness['PHONE_FILLED'] / total_clients,
+        'Adress': 100 * client_completeness['ADDRESS_FILLED'] / total_clients,
+        'City': 100 * client_completeness['CITY_FILLED'] / total_clients,
+        'Zip Code': 100 * client_completeness['POSTAL_FILLED'] / total_clients,
+        'Date of birth': 100 * client_completeness['DOB_FILLED'] / total_clients
     }
     
     import pandas as pd
@@ -344,8 +344,8 @@ with tab2:
 
 
 with tab3:
-    st.subheader("Contrôles de cohérence")
-    st.markdown("**Cohérence des montants**")
+    st.subheader("Consistency checks")
+    st.markdown("**Consistency of amounts**")
     amount_issues = session.sql("""
         SELECT 
           order_id,
@@ -360,16 +360,16 @@ with tab3:
     """).to_pandas()
     
     if not amount_issues.empty:
-        st.warning(f"⚠ {len(amount_issues)} commandes avec incohérence de montants détectées")
-        with st.expander("Voir les détails"):
+        st.warning(f" {len(amount_issues)} orders with inconsistent amounts detected")
+        with st.expander("See details"):
             st.dataframe(amount_issues, use_container_width=True, hide_index=True)
     else:
-        st.success("✓ Tous les montants sont cohérents")
+        st.success("All amounts are consistent")
     
     st.markdown("---")
     
     
-    st.markdown("**Cohérence des dates**")
+    st.markdown("**Consistency of dates**")
     date_issues = session.sql("""
         SELECT 
           order_id,
@@ -384,16 +384,16 @@ with tab3:
     """).to_pandas()
     
     if not date_issues.empty:
-        st.warning(f"⚠ {len(date_issues)} commandes avec incohérence de dates")
-        with st.expander("Voir les détails"):
+        st.warning(f" {len(date_issues)} orders with date inconsistencies")
+        with st.expander("See details"):
             st.dataframe(date_issues, use_container_width=True, hide_index=True)
     else:
-        st.success("✓ Toutes les dates sont cohérentes")
+        st.success("All dates are consistent")
     
     st.markdown("---")
     
     
-    st.markdown("**Format des emails**")
+    st.markdown("**Email format**")
     invalid_emails = session.sql("""
         SELECT 
           client_id,
@@ -406,16 +406,16 @@ with tab3:
     """).to_pandas()
     
     if not invalid_emails.empty:
-        st.warning(f"⚠ {len(invalid_emails)} emails invalides détectés")
-        with st.expander("Voir les détails"):
+        st.warning(f" {len(invalid_emails)} invalid emails detected")
+        with st.expander("See details"):
             st.dataframe(invalid_emails, use_container_width=True, hide_index=True)
     else:
-        st.success("✓ Tous les emails sont valides")
+        st.success("All emails are valid")
     
     st.markdown("---")
     
     
-    st.markdown("**Détection de doublons**")
+    st.markdown("**Duplicate detection**")
     duplicate_emails = session.sql("""
         SELECT 
           email,
@@ -428,15 +428,15 @@ with tab3:
     """).to_pandas()
     
     if not duplicate_emails.empty:
-        st.warning(f"⚠ {len(duplicate_emails)} emails en doublon")
-        with st.expander("Voir les détails"):
+        st.warning(f" {len(duplicate_emails)} duplicate emails ")
+        with st.expander("See details"):
             st.dataframe(duplicate_emails, use_container_width=True, hide_index=True)
     else:
-        st.success("✓ Aucun email en doublon")
+        st.success("No duplicate emails")
 
 
 with tab4:
-    st.subheader("Évolution de la qualité des données")
+    st.subheader("Evolution of data quality")
     
     
     orders_trend = session.sql("""
@@ -450,14 +450,14 @@ with tab4:
     """).to_pandas()
     
     if not orders_trend.empty:
-        st.markdown("**Commandes (30 derniers jours)**")
+        st.markdown("**Orders (last 30 days)**")
         line_chart = alt.Chart(orders_trend).mark_line(point=True, strokeWidth=2).encode(
             x=alt.X('DATE:T', title=''),
-            y=alt.Y('NB_ORDERS:Q', title='Nombre de commandes'),
+            y=alt.Y('NB_ORDERS:Q', title='Number of orders'),
             color=alt.value('#4ECDC4'),
             tooltip=[
                 alt.Tooltip('DATE:T', title='Date'),
-                alt.Tooltip('NB_ORDERS:Q', title='Commandes')
+                alt.Tooltip('NB_ORDERS:Q', title='Orders')
             ]
         ).properties(height=300)
         
@@ -477,7 +477,7 @@ with tab4:
     """).to_pandas()
     
     if not clients_trend.empty:
-        st.markdown("**Nouveaux clients (30 derniers jours)**")
+        st.markdown("**New customers (last 30 days)**")
         area_chart = alt.Chart(clients_trend).mark_area(
             line={'color': '#FFD93D'},
             color=alt.Gradient(
@@ -488,10 +488,10 @@ with tab4:
             )
         ).encode(
             x=alt.X('DATE:T', title=''),
-            y=alt.Y('NB_NEW_CLIENTS:Q', title='Nouveaux clients'),
+            y=alt.Y('NB_NEW_CLIENTS:Q', title='New customers'),
             tooltip=[
                 alt.Tooltip('DATE:T', title='Date'),
-                alt.Tooltip('NB_NEW_CLIENTS:Q', title='Nouveaux clients')
+                alt.Tooltip('NB_NEW_CLIENTS:Q', title='New customers')
             ]
         ).properties(height=300)
         
