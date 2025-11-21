@@ -1,7 +1,6 @@
 version: '3.8'
 
 services:
-  # Redpanda - Alternative Kafka plus légère
   redpanda-0:
     image: docker.redpanda.com/redpandadata/redpanda:v23.2.3
     container_name: redpanda-0
