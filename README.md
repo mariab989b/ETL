@@ -1,5 +1,5 @@
-# ETL Project — Snowflake Maison Albert
-## Groupe 2 - Emilie Boulanger, Maria Boussa, Hugo Braun,Jean-Baptiste Brun
+# ETL Maison Albert
+
 
 This project demonstrates a data pipeline on **Snowflake** for the fictitious retailer **Maison Albert**.  
 We generate realistic synthetic commerce data, route it through a resilient ingestion layer, transform it into an analytical model, and surface results through two **Streamlit** dashboards (analytics and monitoring).  
